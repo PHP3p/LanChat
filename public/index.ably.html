@@ -132,7 +132,6 @@
                     console.log("Connection state changed to", stateChange.current);
                     
                     if (stateChange.current === 'connected') {
-                        addMessage('<div class="sys">已连接到Ably服务器</div>', 'sys');
                         sendButton.disabled = false;
                     } else if (stateChange.current === 'disconnected' || stateChange.current === 'failed') {
                         sendButton.disabled = true;

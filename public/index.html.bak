@@ -97,24 +97,7 @@
 </div>
 
 <script>
-    // 判断是否为本地环境
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-    if (!isLocal) {
-        // 非本地环境，动态加载 index.ably.html 的内容
-        fetch('index.ably.html')
-            .then(response => response.text())
-            .then(html => {
-                document.open();
-                document.write(html);
-                document.close();
-            })
-            .catch(error => {
-                console.error('加载 Ably 版本失败:', error);
-            });
-    } else {
-        // 本地环境，使用默认逻辑
-        const $ = (id) => document.getElementById(id);
+    const $ = (id) => document.getElementById(id);
     const chat = $("chat");
     const text = $("text");
     const nickname = $("nickname");
