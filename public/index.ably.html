@@ -135,6 +135,7 @@
                         sendButton.disabled = false;
                     } else if (stateChange.current === 'disconnected' || stateChange.current === 'failed') {
                         sendButton.disabled = true;
+                        addMessage(`<div class="sys">连接失败: ${stateChange.reason || '未知错误'}</div>`, 'sys');
                     }
                 });
                 
