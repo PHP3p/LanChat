@@ -2,27 +2,25 @@
 
 ## WebSocket 功能限制
 
-在 Vercel 上部署此应用时，需要注意以下重要限制：
+由于 Vercel Serverless Functions 不支持 WebSocket 持久连接，实时聊天功能可能无法正常工作。
 
-1. **WebSocket 不支持**: Vercel Serverless Functions 不支持 WebSocket 持久连接
-2. **实时通信受限**: 应用的实时聊天功能在 Vercel 部署环境中无法正常工作
+## 文件上传功能限制
+
+为了提高应用的安全性和兼容性，文件上传功能在 Vercel 环境中已被禁用：
+- 本地环境（localhost、172.x.x.x、192.x.x.x）：支持无限制文件上传
+- Vercel 环境：文件上传功能被禁用，API 会返回 403 错误
 
 ## 解决方案
 
-### 方案一：使用第三方 WebSocket 服务
-- [Pusher](https://pusher.com/)
-- [Socket.io](https://socket.io/)
-- [Ably](https://ably.com/)
-
-### 方案二：本地部署
-如果需要完整的 WebSocket 功能，请考虑在支持 WebSocket 的传统服务器上部署此应用。
+1. 使用第三方 WebSocket 服务（如 Pusher 或 Socket.io）
+2. 使用传统服务器部署方式
 
 ## 错误说明
 
-您遇到的 `500: INTERNAL_SERVER_ERROR` 和 `FUNCTION_INVOCATION_FAILED` 错误很可能是由于 WebSocket 实现在 Vercel 环境中的不兼容性导致的。
+如果遇到 500 错误，可能是由于 WebSocket 不兼容导致的。
 
 ## 建议
 
-1. 查看控制台输出以获取更多错误详情
-2. 考虑移除或替换 WebSocket 相关功能以适应 Vercel 环境
-3. 或者使用上述第三方服务来实现实时通信功能
+- 查看控制台错误详情
+- 移除或替换 WebSocket 功能
+- 考虑使用第三方 WebSocket 服务

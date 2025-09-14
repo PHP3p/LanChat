@@ -14,6 +14,23 @@ const multer = require("multer");
 // Vercel兼容性处理
 const isVercel = !!process.env.VERCEL;
 
+// 检查是否为本地环境（localhost、172开头、192开头IP）
+function isLocalEnvironment(req) {
+  const host = req.get('host') || '';
+  const hostname = host.split(':')[0];
+  
+  // 检查是否为本地环境
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname.startsWith('172.') ||
+    hostname.startsWith('192.')
+  );
+}
+
+// 文件上传目录
+const UPLOAD_DIR = path.join(__dirname, "uploads");
+
 
 const PORT = process.env.PORT || 3000;
 
@@ -27,32 +44,43 @@ if (isVercel) {
   // 静态资源
   app.use(express.static(path.join(__dirname, "public")));
 
-  // 文件上传目录
-  const UPLOAD_DIR = path.join(__dirname, "uploads");
-  if (!fs.existsSync(UPLOAD_DIR)) {
-      fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-  }
-
-  // 配置 multer 使用流式存储以提高性能
-  const storage = multer.diskStorage({
-      destination: function (req, file, cb) {
-          cb(null, UPLOAD_DIR);
-      },
-      filename: function (req, file, cb) {
-          // 生成唯一文件名
-          const fileExtension = path.extname(file.originalname);
-          const uniqueFileName = `${crypto.randomUUID()}${fileExtension}`;
-          cb(null, uniqueFileName);
+  // 文件上传目录 - 仅在本地环境启用
+  let uploadMiddleware = (req, res, next) => {
+      if (isLocalEnvironment(req)) {
+          // 本地环境支持文件上传
+          const UPLOAD_DIR = path.join(__dirname, "uploads");
+          if (!fs.existsSync(UPLOAD_DIR)) {
+              fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+          }
+          
+          // 配置 multer 使用流式存储以提高性能
+          const storage = multer.diskStorage({
+              destination: function (req, file, cb) {
+                  cb(null, UPLOAD_DIR);
+              },
+              filename: function (req, file, cb) {
+                  // 生成唯一文件名
+                  const fileExtension = path.extname(file.originalname);
+                  const uniqueFileName = `${crypto.randomUUID()}${fileExtension}`;
+                  cb(null, uniqueFileName);
+              }
+          });
+          
+          // 本地环境不限制文件大小
+          const upload = multer({ 
+              storage: storage
+          });
+          
+          // 执行上传中间件
+          upload.single('file')(req, res, next);
+      } else {
+          // 线上环境不支持文件上传
+          return res.status(403).json({ 
+              error: '文件上传功能仅在本地环境可用',
+              message: '线上环境不支持文件上传，请在本地网络中使用此功能' 
+          });
       }
-  });
-
-  // 增加文件大小限制到500MB以支持更大的文件传输
-  const upload = multer({ 
-      storage: storage,
-      limits: {
-          fileSize: 500 * 1024 * 1024 // 500MB 限制
-      }
-  });
+  };
 
   // 解析 JSON 和 URL 编码数据，增加限制以支持大文件
   app.use(express.json({ limit: '500mb' }));
@@ -64,8 +92,16 @@ if (isVercel) {
       etag: false   // 禁用etag以提高性能
   }));
 
-  // 文件上传接口 - 使用 multer
-  app.post('/upload', upload.single('file'), (req, res) => {
+  // 文件上传接口 - 使用自定义中间件
+  app.post('/upload', uploadMiddleware, (req, res) => {
+      // 检查是否为本地环境
+      if (!isLocalEnvironment(req)) {
+          return res.status(403).json({ 
+              error: '文件上传功能仅在本地环境可用',
+              message: '线上环境不支持文件上传，请在本地网络中使用此功能' 
+          });
+      }
+      
       try {
           if (!req.file) {
               return res.status(400).json({ error: '没有上传文件' });
@@ -89,27 +125,37 @@ if (isVercel) {
       }
   });
 
-  // 提供上传文件访问，添加正确的MIME类型支持和性能优化
-  app.use('/uploads', express.static(UPLOAD_DIR, {
-      maxAge: '7d', // 缓存上传文件7天
-      etag: false,  // 禁用etag以提高性能
-      lastModified: true,
-      setHeaders: (res, path) => {
-          // 为视频文件设置正确的MIME类型和支持流式传输的头部
-          if (path.endsWith('.mp4')) {
-              res.setHeader('Content-Type', 'video/mp4');
-          } else if (path.endsWith('.webm')) {
-              res.setHeader('Content-Type', 'video/webm');
-          } else if (path.endsWith('.ogg')) {
-              res.setHeader('Content-Type', 'video/ogg');
-          } else if (path.endsWith('.mov')) {
-              res.setHeader('Content-Type', 'video/quicktime');
-          }
-          
-          // 添加支持流式传输的头部
-          res.setHeader('Accept-Ranges', 'bytes');
+  // 提供上传文件访问，仅在本地环境启用
+  app.use('/uploads', (req, res, next) => {
+      if (isLocalEnvironment(req)) {
+          express.static(UPLOAD_DIR, {
+              maxAge: '7d', // 缓存上传文件7天
+              etag: false,  // 禁用etag以提高性能
+              lastModified: true,
+              setHeaders: (res, path) => {
+                  // 为视频文件设置正确的MIME类型和支持流式传输的头部
+                  if (path.endsWith('.mp4')) {
+                      res.setHeader('Content-Type', 'video/mp4');
+                  } else if (path.endsWith('.webm')) {
+                      res.setHeader('Content-Type', 'video/webm');
+                  } else if (path.endsWith('.ogg')) {
+                      res.setHeader('Content-Type', 'video/ogg');
+                  } else if (path.endsWith('.mov')) {
+                      res.setHeader('Content-Type', 'video/quicktime');
+                  }
+                  
+                  // 添加支持流式传输的头部
+                  res.setHeader('Accept-Ranges', 'bytes');
+              }
+          })(req, res, next);
+      } else {
+          // 线上环境不提供文件访问
+          res.status(403).json({ 
+              error: '文件访问功能仅在本地环境可用',
+              message: '线上环境不支持文件访问，请在本地网络中使用此功能' 
+          });
       }
-  }));
+  });
 
   // 简单健康检查
   app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -302,52 +348,7 @@ if (isVercel) {
       etag: false   // 禁用etag以提高性能
   }));
 
-  // 文件上传接口 - 使用 multer
-  app.post('/upload', upload.single('file'), (req, res) => {
-      try {
-          if (!req.file) {
-              return res.status(400).json({ error: '没有上传文件' });
-          }
-          
-          const { roomId } = req.body;
-          
-          if (!roomId) {
-              return res.status(400).json({ error: '缺少房间参数' });
-          }
-          
-          // 返回文件信息
-          res.json({
-              url: `/uploads/${req.file.filename}`,
-              fileName: req.file.originalname,
-              fileSize: req.file.size
-          });
-      } catch (error) {
-          console.error('文件上传错误:', error);
-          res.status(500).json({ error: '文件上传失败' });
-      }
-  });
-
-  // 提供上传文件访问，添加正确的MIME类型支持和性能优化
-  app.use('/uploads', express.static(UPLOAD_DIR, {
-      maxAge: '7d', // 缓存上传文件7天
-      etag: false,  // 禁用etag以提高性能
-      lastModified: true,
-      setHeaders: (res, path) => {
-          // 为视频文件设置正确的MIME类型和支持流式传输的头部
-          if (path.endsWith('.mp4')) {
-              res.setHeader('Content-Type', 'video/mp4');
-          } else if (path.endsWith('.webm')) {
-              res.setHeader('Content-Type', 'video/webm');
-          } else if (path.endsWith('.ogg')) {
-              res.setHeader('Content-Type', 'video/ogg');
-          } else if (path.endsWith('.mov')) {
-              res.setHeader('Content-Type', 'video/quicktime');
-          }
-          
-          // 添加支持流式传输的头部
-          res.setHeader('Accept-Ranges', 'bytes');
-      }
-  }));
+  
 
   // 简单健康检查
   app.get("/health", (_req, res) => res.json({ ok: true }));

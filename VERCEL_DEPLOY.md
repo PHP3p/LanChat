@@ -16,7 +16,6 @@
 ```markdown
 [![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/USERNAME/REPO_NAME)
 ```
-
 3. 将 `USERNAME` 替换为您的 GitHub 用户名
 4. 将 `REPO_NAME` 替换为您的仓库名称
 
@@ -26,6 +25,7 @@
 
 1. 使用第三方服务如 Pusher 或 Socket.io 替代 WebSocket
 2. 选择支持 WebSocket 的传统服务器托管服务
+3. 文件上传功能在线上环境已被禁用（仅本地环境支持）
 
 ## 手动部署步骤
 
