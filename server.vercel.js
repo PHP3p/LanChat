@@ -47,6 +47,16 @@ const upload = multer({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Vercel环境或本地测试：重定向根路径到index.vercel.html
+const isVercel = !!process.env.VERCEL;
+const isLocalTest = process.env.NODE_ENV === 'development' || process.env.LOCAL_TEST === 'true';
+
+if (isVercel || isLocalTest) {
+    app.get('/', (req, res) => {
+        res.sendFile(path.join(__dirname, 'public', 'index.vercel.html'));
+    });
+}
+
 // 静态文件服务
 app.use(express.static('public'));
 
