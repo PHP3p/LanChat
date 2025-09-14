@@ -24,3 +24,4 @@ Thumbs.db
 # npm相关
 npm-debug.log*
 .npm
+.vercel
