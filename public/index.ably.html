@@ -136,6 +136,9 @@
                     } else if (stateChange.current === 'disconnected' || stateChange.current === 'failed') {
                         sendButton.disabled = true;
                         addMessage(`<div class="sys">连接失败: ${stateChange.reason || '未知错误'}</div>`, 'sys');
+                        if (stateChange.reason && stateChange.reason.includes('80023')) {
+                            addMessage('<div class="sys">错误: 跨站点连接问题，请检查密钥配置</div>', 'sys');
+                        }
                     }
                 });
                 
