@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -8,6 +9,12 @@ const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
+
+// 配置CORS
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: true
+}));
 const PORT = process.env.PORT || 3000;
 
 // 判断是否为本地环境
