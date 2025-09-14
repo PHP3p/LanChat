@@ -1,6 +1,14 @@
 # LAN Chat - 局域网聊天应用
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/USERNAME/REPO_NAME)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/lan-chat)
+
+点击上面的按钮一键部署到 Vercel。Vercel 会自动从 GitHub 仓库拉取代码并部署应用。
+
+### 重要说明
+
+由于 Vercel Serverless Functions 不支持 WebSocket 持久连接，此应用的实时聊天功能在 Vercel 上会受限。建议使用第三方 WebSocket 服务如 Pusher 或 Socket.io 替代。
+
+详细信息请查看 [VERCEL_DEPLOY_NOTICE.md](VERCEL_DEPLOY_NOTICE.md) 文件。
 
 ## 功能特性
 - 实时文本聊天
