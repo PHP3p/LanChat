@@ -9,9 +9,12 @@
     "vercel-build": "echo 'Building for Vercel environment'"
   },
   "dependencies": {
+    "@ably/chat": "^0.12.0",
+    "ably": "^2.12.0",
+    "dotenv": "^17.2.2",
     "express": "^5.1.0",
-    "ws": "^8.18.3",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "ws": "^8.18.3"
   },
   "vercel": {
     "description": "Vercel部署说明: 由于Vercel Serverless Functions不支持WebSocket持久连接，此应用的实时通信功能在Vercel上会受限。建议使用第三方WebSocket服务如Pusher或Socket.io替代。"

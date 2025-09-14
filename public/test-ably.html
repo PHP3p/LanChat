@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ably Test</title>
+    <script src="js/ably.min.js"></script>
+    <script src="js/ably-chat.min.js"></script>
+</head>
+<body>
+    <h1>Ably Test</h1>
+    <pre id="output"></pre>
+    <script>
+        window.onload = function() {
+            const output = document.getElementById('output');
+            output.textContent += 'typeof Ably: ' + typeof Ably + '\n';
+            output.textContent += 'Ably keys: ' + JSON.stringify(Object.keys(Ably)) + '\n';
+            
+            if (Ably && Ably.Chat) {
+                output.textContent += 'typeof Ably.Chat: ' + typeof Ably.Chat + '\n';
+                output.textContent += 'Ably.Chat keys: ' + JSON.stringify(Object.keys(Ably.Chat)) + '\n';
+            }
+            
+            if (Ably && Ably.ChatClient) {
+                output.textContent += 'typeof Ably.ChatClient: ' + typeof Ably.ChatClient + '\n';
+            }
+        };
+    </script>
+</body>
+</html>

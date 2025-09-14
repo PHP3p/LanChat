@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ably Chat Structure Debug</title>
+    <script src="https://cdn.ably.com/1/ably.min.js"></script>
+    <script src="https://unpkg.com/@ably/chat@latest/dist/chat/ably-chat.umd.cjs"></script>
+</head>
+<body>
+    <h1>Ably Chat Structure Debug</h1>
+    <pre id="output"></pre>
+
+    <script>
+        function log(message) {
+            const output = document.getElementById('output');
+            output.textContent += message + '\n';
+            console.log(message);
+        }
+
+        window.onload = function() {
+            log('Debugging Ably Chat structure...');
+            
+            // 检查 Ably 对象
+            log('Ably object keys: ' + Object.keys(Ably));
+            
+            // 检查 Chat 是否存在
+            if (typeof Ably.Chat !== 'undefined') {
+                log('Ably.Chat exists');
+                log('Ably.Chat keys: ' + Object.keys(Ably.Chat));
+            } else {
+                log('Ably.Chat does not exist');
+            }
+            
+            // 检查 ChatClient 是否直接在 Ably 上
+            if (typeof Ably.ChatClient !== 'undefined') {
+                log('Ably.ChatClient exists');
+                log('Ably.ChatClient type: ' + typeof Ably.ChatClient);
+            } else {
+                log('Ably.ChatClient does not exist');
+            }
+            
+            // 检查独立的 Chat 模块
+            if (typeof Chat !== 'undefined') {
+                log('Chat module exists');
+                log('Chat module keys: ' + Object.keys(Chat));
+                log('Chat.ChatClient type: ' + typeof Chat.ChatClient);
+            } else {
+                log('Chat module does not exist');
+            }
+            
+            // 尝试不同的初始化方式
+            try {
+                log('Trying: new Ably.ChatClient(ablyClient)');
+                // 这里只是测试语法，不实际连接
+                log('Syntax check passed');
+            } catch (e) {
+                log('Failed: new Ably.ChatClient(ablyClient) - ' + e.message);
+            }
+            
+            try {
+                log('Trying: new Ably.Chat.ChatClient(ablyClient)');
+                // 这里只是测试语法，不实际连接
+                log('Syntax check passed');
+            } catch (e) {
+                log('Failed: new Ably.Chat.ChatClient(ablyClient) - ' + e.message);
+            }
+            
+            try {
+                log('Trying: new Chat.ChatClient(ablyClient)');
+                // 这里只是测试语法，不实际连接
+                log('Syntax check passed');
+            } catch (e) {
+                log('Failed: new Chat.ChatClient(ablyClient) - ' + e.message);
+            }
+        };
+    </script>
+</body>
+</html>

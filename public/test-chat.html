@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ably Chat Test</title>
+    <script src="./js/ably.min.js"></script>
+    <script src="./js/ably-chat.min.js"></script>
+</head>
+<body>
+    <h1>Ably Chat Test</h1>
+    <div id="output"></div>
+
+    <script>
+        // 显示Ably对象结构
+        document.getElementById('output').innerHTML += '<h2>Ably Object Structure:</h2>';
+        document.getElementById('output').innerHTML += '<pre>' + JSON.stringify(Object.keys(Ably), null, 2) + '</pre>';
+        
+        // 检查ChatClient是否存在
+        document.getElementById('output').innerHTML += '<h2>Checking ChatClient:</h2>';
+        if (typeof Ably.ChatClient !== 'undefined') {
+            document.getElementById('output').innerHTML += '<p>Ably.ChatClient is available</p>';
+        } else {
+            document.getElementById('output').innerHTML += '<p>Ably.ChatClient is NOT available</p>';
+        }
+        
+        if (typeof Ably.Chat !== 'undefined') {
+            document.getElementById('output').innerHTML += '<p>Ably.Chat is available</p>';
+            document.getElementById('output').innerHTML += '<pre>' + JSON.stringify(Object.keys(Ably.Chat), null, 2) + '</pre>';
+        } else {
+            document.getElementById('output').innerHTML += '<p>Ably.Chat is NOT available</p>';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Ably Object</title>
+    <script src="./js/ably.min.js"></script>
+    <script src="./js/ably-chat.min.js"></script>
+</head>
+<body>
+    <h1>Debug Ably Object</h1>
+    <div id="output"></div>
+
+    <script>
+        document.getElementById('output').innerHTML += '<h2>Ably Object Keys:</h2>';
+        try {
+            const keys = Object.keys(Ably);
+            document.getElementById('output').innerHTML += '<pre>' + JSON.stringify(keys, null, 2) + '</pre>';
+        } catch (e) {
+            document.getElementById('output').innerHTML += '<p>Error: ' + e.message + '</p>';
+        }
+        
+        document.getElementById('output').innerHTML += '<h2>Ably Object Type:</h2>';
+        document.getElementById('output').innerHTML += '<p>typeof Ably: ' + typeof Ably + '</p>';
+        document.getElementById('output').innerHTML += '<p>Ably constructor: ' + (Ably.constructor ? Ably.constructor.name : 'no constructor') + '</p>';
+        
+        document.getElementById('output').innerHTML += '<h2>Checking ChatClient:</h2>';
+        try {
+            document.getElementById('output').innerHTML += '<p>typeof Ably.ChatClient: ' + typeof Ably.ChatClient + '</p>';
+            if (typeof Ably.ChatClient !== 'undefined') {
+                document.getElementById('output').innerHTML += '<p>Ably.ChatClient is available</p>';
+                if (typeof Ably.ChatClient === 'function') {
+                    document.getElementById('output').innerHTML += '<p>Ably.ChatClient is a function</p>';
+                } else {
+                    document.getElementById('output').innerHTML += '<p>Ably.ChatClient is NOT a function, it is: ' + typeof Ably.ChatClient + '</p>';
+                    document.getElementById('output').innerHTML += '<p>Ably.ChatClient value: ' + JSON.stringify(Ably.ChatClient, null, 2) + '</p>';
+                }
+            } else {
+                document.getElementById('output').innerHTML += '<p>Ably.ChatClient is NOT available</p>';
+            }
+            
+            document.getElementById('output').innerHTML += '<h2>Checking Ably.Chat:</h2>';
+            document.getElementById('output').innerHTML += '<p>typeof Ably.Chat: ' + typeof Ably.Chat + '</p>';
+            if (typeof Ably.Chat !== 'undefined') {
+                document.getElementById('output').innerHTML += '<p>Ably.Chat is available</p>';
+                try {
+                    const chatKeys = Object.keys(Ably.Chat);
+                    document.getElementById('output').innerHTML += '<pre>' + JSON.stringify(chatKeys, null, 2) + '</pre>';
+                } catch (e) {
+                    document.getElementById('output').innerHTML += '<p>Error accessing Ably.Chat keys: ' + e.message + '</p>';
+                }
+            } else {
+                document.getElementById('output').innerHTML += '<p>Ably.Chat is NOT available</p>';
+            }
+            
+            document.getElementById('output').innerHTML += '<h2>Full Ably Object Structure:</h2>';
+            try {
+                // 创建一个简化版本的对象来避免循环引用
+                const simplifiedAbly = {};
+                for (const key in Ably) {
+                    if (Ably.hasOwnProperty(key)) {
+                        const value = Ably[key];
+                        if (typeof value === 'function') {
+                            simplifiedAbly[key] = '[Function]';
+                        } else if (typeof value === 'object') {
+                            try {
+                                simplifiedAbly[key] = Object.keys(value);
+                            } catch (e) {
+                                simplifiedAbly[key] = '[Object]';
+                            }
+                        } else {
+                            simplifiedAbly[key] = value;
+                        }
+                    }
+                }
+                document.getElementById('output').innerHTML += '<pre>' + JSON.stringify(simplifiedAbly, null, 2) + '</pre>';
+            } catch (e) {
+                document.getElementById('output').innerHTML += '<p>Error serializing Ably object: ' + e.message + '</p>';
+            }
+        } catch (e) {
+            document.getElementById('output').innerHTML += '<p>Error: ' + e.message + '</p>';
+        }
+    </script>
+</body>
+</html>

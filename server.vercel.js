@@ -4,6 +4,9 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
+// 加载环境变量
+require('dotenv').config();
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -127,6 +130,53 @@ app.get('/api/messages', (req, res) => {
         messages: [],
         message: 'Vercel环境使用轮询代替WebSocket，请定期调用此接口获取新消息'
     });
+});
+
+// Ably token生成接口
+app.get('/api/ably-token', (req, res) => {
+    // 检查是否配置了Ably API密钥
+    const ABLY_API_KEY = process.env.ABLY_API_KEY;
+    
+    if (!ABLY_API_KEY) {
+        return res.status(500).json({
+            error: 'Ably API密钥未配置',
+            message: '请在环境变量中设置ABLY_API_KEY'
+        });
+    }
+    
+    try {
+        // 使用Ably库生成token
+        const Ably = require('ably');
+        const ably = new Ably.Rest({ key: ABLY_API_KEY });
+        
+        // 生成token请求
+        ably.auth.requestToken({
+            clientId: 'lan-chat-user-' + Date.now(),
+            capability: {
+                "lan-chat-room": ["publish", "subscribe"]
+            }
+        }, (err, tokenDetails) => {
+            if (err) {
+                console.error('生成Ably token时出错:', err);
+                return res.status(500).json({
+                    error: '生成token失败',
+                    message: err.message
+                });
+            }
+            
+            // 返回token详情而不是token请求
+            res.status(200).json({
+                token: tokenDetails.token,
+                clientId: tokenDetails.clientId
+            });
+        });
+    } catch (error) {
+        console.error('生成Ably token时出错:', error);
+        res.status(500).json({
+            error: '生成token失败',
+            message: error.message
+        });
+    }
 });
 
 // 错误处理中间件
