@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Chat Client</title>
+    <script src="./js/ably.min.js"></script>
+    <script src="./js/ably-chat.min.js"></script>
+</head>
+<body>
+    <h1>Test Chat Client</h1>
+    <div id="output"></div>
+    
+    <script>
+        function log(message) {
+            const output = document.getElementById('output');
+            output.innerHTML += `<p>${message}</p>`;
+            console.log(message);
+        }
+        
+        window.onload = async function() {
+            try {
+                log('Testing Ably Chat Client initialization...');
+                
+                // 检查全局对象
+                log('Ably: ' + typeof Ably);
+                log('Chat: ' + typeof Chat);
+                
+                // 检查Ably对象结构
+                if (Ably) {
+                    const ablyKeys = Object.keys(Ably);
+                    log('Ably keys: ' + JSON.stringify(ablyKeys));
+                }
+                
+                if (Chat) {
+                    const chatKeys = Object.keys(Chat);
+                    log('Chat keys: ' + JSON.stringify(chatKeys));
+                }
+                
+                // 检查ChatClient的位置
+                log('Ably.ChatClient exists: ' + (typeof Ably.ChatClient !== 'undefined'));
+                log('Chat.ChatClient exists: ' + (typeof Chat.ChatClient !== 'undefined'));
+                
+                // 尝试不同的初始化方式
+                try {
+                    log('Trying: new Ably.ChatClient()');
+                    // 这种方式在Node.js中是正确的，但在浏览器中可能不同
+                    const ablyClient = new Ably.Realtime({ key: 'test-key' });
+                    const chatClient = new Ably.ChatClient(ablyClient);
+                    log('Success: new Ably.ChatClient() works!');
+                } catch (e) {
+                    log('Failed: new Ably.ChatClient() - ' + e.message);
+                }
+                
+                try {
+                    log('Trying: new Chat.ChatClient()');
+                    // 这种方式在浏览器UMD模块中可能是正确的
+                    const ablyClient = new Ably.Realtime({ key: 'test-key' });
+                    const chatClient = new Chat.ChatClient(ablyClient);
+                    log('Success: new Chat.ChatClient() works!');
+                } catch (e) {
+                    log('Failed: new Chat.ChatClient() - ' + e.message);
+                }
+                
+            } catch (error) {
+                log('Error: ' + error.message);
+            }
+        };
+    </script>
+</body>
+</html>
