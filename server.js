@@ -19,6 +19,7 @@ const PORT = process.env.PORT || 3000;
 
 // Vercel环境中不启动独立服务器
 if (isVercel) {
+  const app = express();
   module.exports = app;
 } else {
   const app = express();
