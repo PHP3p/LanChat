@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAN Chat - 局域网聊天室</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --secondary-color: #f5f5f5;
+            --border-color: #ddd;
+            --text-color: #333;
+            --success-color: #5cb85c;
+            --warning-color: #f0ad4e;
+            --error-color: #d9534f;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        header {
+            background: var(--primary-color);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.8em;
+        }
+
+        .room-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: var(--secondary-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        #roomId {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            word-wrap: break-word;
+        }
+
+        .message.system {
+            background: #e3f2fd;
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .message.user {
+            background: #e8f5e9;
+            border-left: 3px solid var(--success-color);
+        }
+
+        .message.file {
+            background: #fff3e0;
+            border-left: 3px solid var(--warning-color);
+        }
+
+        .message.error {
+            background: #ffebee;
+            border-left: 3px solid var(--error-color);
+        }
+
+        .input-area {
+            padding: 20px;
+        }
+
+        #text {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            resize: vertical;
+            margin-bottom: 10px;
+            font-family: inherit;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--secondary-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .file-upload {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        #file {
+            flex: 1;
+        }
+
+        .status {
+            padding: 10px 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .polling-info {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                border-radius: 0;
+            }
+            
+            .room-info {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>局域网聊天室</h1>
+        </header>
+        
+        <div class="polling-info">
+            <p>注意：当前运行在Vercel环境，使用轮询方式获取消息</p>
+        </div>
+        
+        <div class="room-info">
+            <div>房间号: <span id="roomId">loading...</span></div>
+            <div>状态: <span id="status" class="disconnected">未连接</span></div>
+        </div>
+        
+        <div class="messages" id="messages"></div>
+        
+        <div class="input-area">
+            <textarea id="text" rows="3" placeholder="输入要发送的文字（回车发送，Shift+回车换行）"></textarea>
+            <div class="controls">
+                <button id="send" class="btn-primary">发送消息</button>
+                <button id="connect" class="btn-secondary">重新连接</button>
+            </div>
+            <div class="file-upload">
+                <input type="file" id="file" />
+                <button id="upload" class="btn-secondary">上传文件</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 获取URL参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room') || 'default';
+        document.getElementById('roomId').textContent = roomId;
+
+        // 消息显示区域
+        const messages = document.getElementById('messages');
+        const statusEl = document.getElementById('status');
+
+        // 添加消息到界面
+        function addMsg(msg) {
+            const div = document.createElement('div');
+            div.className = `message ${msg.kind}`;
+            
+            const time = new Date().toLocaleTimeString();
+            let content = `[${time}] `;
+            
+            switch (msg.kind) {
+                case 'system':
+                    content += msg.text;
+                    break;
+                case 'user':
+                    content += `${msg.nickname || '匿名'}: ${msg.text}`;
+                    break;
+                case 'file':
+                    content += `${msg.nickname || '匿名'} 上传了文件: `;
+                    content += `<a href="${msg.url}" target="_blank">${msg.name}</a> (${formatFileSize(msg.size)})`;
+                    break;
+                case 'error':
+                    content += `错误: ${msg.text}`;
+                    break;
+            }
+            
+            div.innerHTML = content;
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 发送文本消息
+        async function sendText() {
+            const text = document.getElementById('text').value.trim();
+            if (!text) return;
+            
+            try {
+                // 注意：在Vercel环境中，实际应用需要将消息发送到服务器存储
+                // 这里仅作为演示，显示本地消息
+                addMsg({
+                    kind: 'user',
+                    nickname: '我',
+                    text: text
+                });
+                
+                document.getElementById('text').value = '';
+            } catch (error) {
+                addMsg({
+                    kind: 'error',
+                    text: '发送消息失败: ' + error.message
+                });
+            }
+        }
+
+        // 上传文件
+        async function uploadFile() {
+            const fileInput = document.getElementById('file');
+            const file = fileInput.files[0];
+            if (!file) {
+                addMsg({
+                    kind: 'error',
+                    text: '请选择要上传的文件'
+                });
+                return;
+            }
+
+            try {
+                // 在Vercel环境中，文件上传功能被禁用
+                addMsg({
+                    kind: 'error',
+                    text: '文件上传功能在Vercel环境中不可用，请在本地网络中使用此功能'
+                });
+                
+                fileInput.value = '';
+            } catch (error) {
+                addMsg({
+                    kind: 'error',
+                    text: '文件上传失败: ' + error.message
+                });
+            }
+        }
+
+        // 轮询获取消息
+        let pollingInterval = null;
+        let lastMessageId = 0;
+
+        function startPolling() {
+            // 停止之前的轮询
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+            
+            // 开始新的轮询
+            pollingInterval = setInterval(async () => {
+                try {
+                    // 在实际应用中，这里应该调用服务器API获取新消息
+                    // 由于是演示，我们只显示连接状态
+                    statusEl.textContent = '轮询中...';
+                    statusEl.className = 'connected';
+                    
+                    // 模拟获取消息
+                    // 实际应用中应调用: const response = await fetch('/api/messages');
+                } catch (error) {
+                    statusEl.textContent = '轮询失败';
+                    statusEl.className = 'disconnected';
+                    addMsg({
+                        kind: 'error',
+                        text: '轮询失败: ' + error.message
+                    });
+                }
+            }, 3000); // 每3秒轮询一次
+            
+            statusEl.textContent = '轮询已启动';
+            statusEl.className = 'connected';
+        }
+
+        // 停止轮询
+        function stopPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+            statusEl.textContent = '轮询已停止';
+            statusEl.className = 'disconnected';
+        }
+
+        // 初始化连接
+        function connect() {
+            addMsg({
+                kind: 'system',
+                text: '已连接到Vercel环境，使用轮询方式获取消息'
+            });
+            
+            startPolling();
+        }
+
+        // 事件监听
+        document.getElementById('send').addEventListener('click', sendText);
+        document.getElementById('text').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendText();
+            }
+        });
+        
+        document.getElementById('upload').addEventListener('click', uploadFile);
+        document.getElementById('connect').addEventListener('click', () => {
+            stopPolling();
+            connect();
+        });
+
+        // 页面加载完成后自动连接
+        window.addEventListener('load', connect);
+
+        // 页面关闭前清理
+        window.addEventListener('beforeunload', () => {
+            stopPolling();
+        });
+    </script>
+</body>
+</html>

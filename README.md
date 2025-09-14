@@ -8,6 +8,8 @@
 
 由于 Vercel Serverless Functions 不支持 WebSocket 持久连接，此应用的实时聊天功能在 Vercel 上会受限。建议使用第三方 WebSocket 服务如 Pusher 或 Socket.io 替代。
 
+为了适配Vercel环境，我们提供了专门的server.vercel.js文件，其中移除了WebSocket相关功能，改用轮询方式实现消息传递。
+
 详细信息请查看 [VERCEL_DEPLOY_NOTICE.md](VERCEL_DEPLOY_NOTICE.md) 文件。
 
 ## 功能特性

@@ -4,7 +4,9 @@
   "description": "局域网聊天室应用，支持文本和文件传输",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "vercel-start": "node server.vercel.js",
+    "vercel-build": "echo 'Building for Vercel environment'"
   },
   "dependencies": {
     "express": "^5.1.0",
