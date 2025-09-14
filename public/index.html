@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta
+            name="viewport"
+            content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>局域网文字互传</title>
+    <style>
+        /* 手机端友好布局 */
+        @media (max-width: 600px) {
+            .row { flex-direction: column; }
+            .toolbar { flex-wrap: wrap; }
+            #text { min-height: 80px; }
+            button { width: 100%; }
+        }
+        :root {
+            --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af;
+            --accent:#22c55e; --danger:#ef4444; --border:#1f2937;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin:0; background: var(--bg); color: var(--text); font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,Apple Color Emoji,Segoe UI Emoji;
+            display:flex; min-height:100vh; align-items:center; justify-content:center; padding: 16px;
+        }
+        .container {
+            width: 100%; max-width: 860px; background: var(--card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+        }
+        .row { display:flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+        .row > * { flex: 1; min-width: 160px; }
+        h1 { font-size: 20px; margin: 4px 0 12px; letter-spacing: .5px; }
+        .muted { color: var(--muted); font-size: 12px; }
+        input, textarea, button, select {
+            background: #0b1220; color: var(--text); border: 1px solid var(--border);
+            border-radius: 10px; padding: 10px 12px; outline: none; width: 100%;
+        }
+        input:focus, textarea:focus { border-color: #334155; }
+        button {
+            cursor: pointer; font-weight: 600;
+            transition: transform .05s ease, background .2s ease, opacity .2s ease;
+        }
+        button.primary { background: var(--accent); color: #07210f; border-color: transparent; }
+        button.danger { background: var(--danger); color: white; border-color: transparent; }
+        button:active { transform: translateY(1px); }
+        .chat {
+            height: 46vh; min-height: 260px; overflow-y: auto; padding: 12px; border: 1px dashed #263043; border-radius: 12px; background: #0b1220;
+        }
+        .msg { margin: 8px 0; padding: 10px 12px; border-radius: 12px; background: #0e1628; border: 1px solid #1f2a44; }
+        .sys { background: #0c1322; color: #9fb3c8; font-size: 12px; border-style: dashed; }
+        .me { border-color: #284d35; background: #0e1d15; }
+        .head { font-weight: 700; font-size: 13px; margin-bottom: 4px; display:flex; gap:8px; align-items:baseline; }
+        .ts { font-size: 11px; color: var(--muted); }
+        .toolbar { display:flex; gap: 8px; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+        .nowrap { white-space: nowrap; }
+    </style>
+    
+</head>
+<body>
+<div class="container">
+    <h1>🟢 局域网文字互传</h1>
+    <div class="row" style="margin-bottom:10px;">
+        <div>
+            <label class="muted">昵称</label>
+            <input id="nickname" placeholder="例如：小明" maxlength="32" />
+        </div>
+        <div>
+            <label class="muted">房间码（可选，默认同房）</label>
+            <input id="room" class="mono" placeholder="例如：team1" />
+        </div>
+        <div style="flex:0 0 180px; margin-top:20px;">
+            <button id="connectBtn" class="primary">连接</button>
+        </div>
+    </div>
+
+    <div id="chat" class="chat" aria-live="polite"></div>
+
+    <div style="margin:10px 0;"></div>
+
+    <div class="row">
+        <textarea id="text" rows="3" placeholder="输入要发送的文字（回车发送，Shift+回车换行）"></textarea>
+    </div>
+    <div style="height:10px;"></div>
+    <div class="toolbar">
+        <button id="sendBtn" class="primary">发送</button>
+        <button id="fileBtn" class="primary">发送文件</button>
+        <input type="file" id="fileInput" style="display: none;" accept="*/*" />
+        <button id="copyBtn">复制选中文本/最新消息</button>
+        <button id="clearBtn" class="danger">清空本地记录</button>
+        <div class="muted nowrap" style="margin-left:auto;">当前地址：<span id="addr" class="mono"></span></div>
+    </div>
+    <div class="muted" style="margin-top:6px;">
+        小技巧：把 URL 改成 <span class="mono">http://&lt;你的局域网IP&gt;:3000/?room=team1</span>，不同小组互不打扰。
+    </div>
+</div>
+
+<script>
+    const $ = (id) => document.getElementById(id);
+    const chat = $("chat");
+    const text = $("text");
+    const nickname = $("nickname");
+    const roomInput = $("room");
+    const connectBtn = $("connectBtn");
+    const sendBtn = $("sendBtn");
+    const fileBtn = $("fileBtn");
+    const fileInput = $("fileInput");
+    const copyBtn = $("copyBtn");
+    const clearBtn = $("clearBtn");
+    const addr = $("addr");
+
+    // 显示当前可分享地址（使用当前 host）
+    addr.textContent = location.host + (location.search || "");
+
+    // 从 URL 读取 room 初值
+    const urlParams = new URLSearchParams(location.search);
+    roomInput.value = urlParams.get("room") || "";
+
+    let ws = null;
+    let connected = false;
+
+    function wsUrl() {
+        const proto = location.protocol === "https:" ? "wss" : "ws";
+        const base = `${proto}://${location.host}`;
+        const room = roomInput.value.trim();
+        const qs = new URLSearchParams(location.search);
+        if (room) qs.set("room", room);
+        return base + "/?" + qs.toString();
+    }
+
+    function addMsg({ kind = "chat", nickname = "匿名", text = "", ts = Date.now(), self = false }) {
+        const div = document.createElement("div");
+        div.className = "msg " + (kind === "system" ? "sys" : self ? "me" : "");
+        const timeStr = new Date(ts).toLocaleString();
+        if (kind === "system") {
+            div.innerHTML = `<div class="head">系统<span class="ts">${timeStr}</span></div><div>${escapeHtml(text)}</div>`;
+        } else {
+            div.innerHTML = `<div class="head">${escapeHtml(nickname)}<span class="ts">${timeStr}</span></div><div>${linkify(escapeHtml(text))}</div>`;
+        }
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+        // 本地存储用于刷新后保留
+        persist();
+        return div; // 返回创建的DOM元素
+    }
+
+    function addFileMsg({ kind = "file", nickname = "匿名", file, ts = Date.now(), self = false }) {
+        const div = document.createElement("div");
+        div.className = "msg " + (self ? "me" : "");
+        
+        const timeStr = new Date(ts).toLocaleString();
+        const fileSize = formatFileSize(file.size);
+        
+        // 根据文件类型决定显示方式
+        let filePreview = '';
+        const fileExt = file.name.split('.').pop().toLowerCase();
+        const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+        const videoExts = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'wmv', 'flv', 'mkv'];
+        const docExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
+        const archiveExts = ['zip', 'rar', '7z', 'tar', 'gz'];
+        
+        if (imageExts.includes(fileExt)) {
+            // 图片文件显示缩略图
+            filePreview = `<div><img src="${file.url}" alt="${escapeHtml(file.name)}" style="max-width: 200px; max-height: 200px; border-radius: 4px; margin-top: 8px;" /></div>`;
+        } else if (videoExts.includes(fileExt)) {
+            // 视频文件显示视频播放器
+            filePreview = `
+                <div>
+                    <video controls style="max-width: 300px; max-height: 200px; margin-top: 8px;">
+                        <source src="${file.url}" type="video/${fileExt}">
+                        您的浏览器不支持视频播放。
+                    </video>
+                </div>`;
+        } else if (docExts.includes(fileExt)) {
+            // 文档文件显示文档图标
+            filePreview = `<div style="margin-top: 8px; font-size: 24px;">📝</div>`;
+        } else if (archiveExts.includes(fileExt)) {
+            // 压缩文件显示压缩包图标
+            filePreview = `<div style="margin-top: 8px; font-size: 24px;">📦</div>`;
+        } else {
+            // 其他文件显示通用文件图标
+            filePreview = `<div style="margin-top: 8px; font-size: 24px;">📄</div>`;
+        }
+        
+        div.innerHTML = `
+            <div class="head">${escapeHtml(nickname)}<span class="ts">${timeStr}</span></div>
+            <div>
+                <div>发送了一个文件：</div>
+                <div style="margin: 8px 0; padding: 8px; background: #1a2439; border-radius: 6px;">
+                    <div><strong>${escapeHtml(file.name)}</strong></div>
+                    <div style="font-size: 12px; color: #9ca3af; margin: 4px 0;">${fileSize}</div>
+                    ${filePreview}
+                    <div style="margin-top: 8px;">
+                        <a href="${file.url}" download="${escapeHtml(file.name)}" target="_blank" style="display: inline-block; padding: 6px 12px; background: #22c55e; color: white; border-radius: 4px; text-decoration: none; font-size: 12px;">下载文件</a>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+        // 本地存储用于刷新后保留
+        persist();
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function escapeHtml(s) {
+        return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function linkify(s) {
+        // 简单把 URL 变成可点击链接
+        return s.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+    }
+
+    // 心跳定时器
+    let heartbeatInterval;
+    // 重连定时器
+    let reconnectTimeout;
+    // 心跳间隔（毫秒）
+    const HEARTBEAT_INTERVAL = 30000; // 30秒
+    // 重连延迟（毫秒）
+    const RECONNECT_DELAY = 3000; // 3秒
+
+    function connect() {
+        if (connected) {
+            ws?.close();
+        }
+        
+        // 清除之前的定时器
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        if (reconnectTimeout) clearTimeout(reconnectTimeout);
+        
+        ws = new WebSocket(wsUrl());
+        
+        ws.addEventListener("open", () => {
+            connected = true;
+            connectBtn.textContent = "断开";
+            addMsg({ kind: "system", text: "WebSocket 已连接" });
+            
+            // 启动心跳机制
+            heartbeatInterval = setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: "ping" }));
+                }
+            }, HEARTBEAT_INTERVAL);
+        });
+        
+        ws.addEventListener("close", () => {
+            connected = false;
+            connectBtn.textContent = "连接";
+            
+            // 清除心跳定时器
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            
+            // 显示断开消息
+            addMsg({ kind: "system", text: "连接已断开" });
+            
+            // 自动重连（除非用户手动断开）
+            if (connected !== null) {
+                reconnectTimeout = setTimeout(() => {
+                    if (connected !== false) { // 只有在不是手动断开的情况下才重连
+                        connect();
+                    }
+                }, RECONNECT_DELAY);
+            }
+        });
+        
+        ws.addEventListener("message", (ev) => {
+            try {
+                const data = JSON.parse(ev.data);
+                
+                // 处理心跳响应
+                if (data.type === "pong") {
+                    return; // 心跳响应，无需处理
+                }
+                
+                if (data.type === "system") {
+                    addMsg({ kind: "system", text: data.text, ts: data.ts });
+                } else if (data.type === "chat") {
+                    addMsg({ kind: "chat", nickname: data.nickname, text: data.text, ts: data.ts });
+                } else if (data.type === "file") {
+                    addFileMsg({ kind: "file", nickname: data.nickname, file: data.file, ts: data.ts });
+                }
+            } catch {}
+        });
+        
+        // 错误处理
+        ws.addEventListener("error", (error) => {
+            console.error("WebSocket 错误:", error);
+            addMsg({ kind: "system", text: "连接发生错误，将尝试重新连接..." });
+        });
+    }
+
+    // 修改断开连接按钮的处理逻辑
+    connectBtn.onclick = () => {
+        if (!connected) {
+            // 连接
+            connected = null; // 标记为用户主动连接
+            connect();
+        } else {
+            // 断开连接
+            connected = false; // 标记为用户主动断开
+            if (reconnectTimeout) clearTimeout(reconnectTimeout);
+            ws?.close();
+        }
+    };
+
+    function send() {
+        if (!connected || !ws || ws.readyState !== WebSocket.OPEN) {
+            addMsg({ kind: "system", text: "未连接，无法发送。" });
+            return;
+        }
+        const content = text.value.trim();
+        if (!content) return;
+        const nick = nickname.value.trim() || "匿名";
+        const packet = { type: "chat", nickname: nick, text: content };
+        ws.send(JSON.stringify(packet));
+        addMsg({ kind: "chat", nickname: nick + "（我）", text: content, self: true });
+        text.value = "";
+        text.focus();
+    }
+
+    // 快捷键：Enter 发送，Shift+Enter 换行
+    text.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault(); send();
+        }
+    });
+
+    // 文件上传处理
+    fileBtn.onclick = () => {
+        fileInput.click();
+    };
+
+    fileInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        if (!connected || !ws || ws.readyState !== WebSocket.OPEN) {
+            addMsg({ kind: "system", text: "未连接，无法发送文件。" });
+            return;
+        }
+        
+        // 移除文件大小限制，但添加一个合理的警告（100MB）
+        if (file.size > 100 * 1024 * 1024) {
+            if (!confirm(`文件大小为 ${formatFileSize(file.size)}，确定要发送吗？`)) {
+                return;
+            }
+        }
+        
+        // 显示上传中消息
+        const uploadingMsg = addMsg({ 
+            kind: "system", 
+            text: `正在上传文件: ${file.name}...` 
+        });
+        
+        try {
+            // 使用 FormData 上传文件（更高效）
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('roomId', roomInput.value || "default");
+            
+            // 上传文件到服务器
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                // 发送文件消息到 WebSocket
+                const nick = nickname.value.trim() || "匿名";
+                const fileData = {
+                    url: result.url,
+                    name: file.name,
+                    size: result.fileSize
+                };
+                
+                const packet = { 
+                    type: "file", 
+                    nickname: nick, 
+                    file: fileData
+                };
+                ws.send(JSON.stringify(packet));
+                
+                // 在发送方本地显示文件预览
+                addFileMsg({ 
+                    kind: "file", 
+                    nickname: nick + "（我）", 
+                    file: fileData, 
+                    self: true 
+                });
+                
+                // 更新消息显示
+                uploadingMsg.innerHTML = `<div class="head">系统<span class="ts">${new Date().toLocaleString()}</span></div><div>文件上传成功: ${file.name}</div>`;
+            } else {
+                throw new Error(result.error || '上传失败');
+            }
+        } catch (error) {
+            console.error('文件上传错误:', error);
+            addMsg({ kind: "system", text: `文件上传失败: ${error.message}` });
+        }
+    };
+
+    sendBtn.onclick = send;
+    connectBtn.onclick = () => {
+        if (!connected) connect(); else ws?.close();
+    };
+
+    copyBtn.onclick = async () => {
+        let selected = window.getSelection()?.toString();
+        if (!selected) {
+            const last = chat.querySelector(".msg:last-child");
+            selected = last ? last.innerText : "";
+        }
+        if (!selected) return;
+        try {
+            await navigator.clipboard.writeText(selected);
+            addMsg({ kind: "system", text: "已复制到剪贴板：" + (selected.length > 30 ? selected.slice(0,30) + "..." : selected) });
+        } catch {
+            addMsg({ kind: "system", text: "复制失败，请手动选择文本复制。" });
+        }
+    };
+
+    clearBtn.onclick = () => {
+        chat.innerHTML = "";
+        localStorage.removeItem("lan-chat-history");
+        addMsg({ kind: "system", text: "已清空本地消息记录（不影响他人）。" });
+    };
+
+    // 本地持久化（仅当前设备）
+    function persist() {
+        const items = Array.from(chat.querySelectorAll(".msg")).map(div => div.outerHTML);
+        localStorage.setItem("lan-chat-history", JSON.stringify(items));
+    }
+    function restore() {
+        const raw = localStorage.getItem("lan-chat-history");
+        if (!raw) return;
+        try {
+            const items = JSON.parse(raw);
+            items.forEach(html => {
+                const div = document.createElement("div");
+                div.outerHTML = html; // 安全：这些内容由我们自己保存
+                chat.insertAdjacentHTML("beforeend", html);
+            });
+            chat.scrollTop = chat.scrollHeight;
+        } catch {}
+    }
+    restore();
+
+    // 首次自动尝试连接
+    connect();
+</script>
+</body>
+</html>

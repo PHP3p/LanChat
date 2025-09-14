@@ -1,0 +1,17 @@
+{
+  "name": "lan-chat",
+  "version": "1.0.0",
+  "description": "局域网聊天室应用，支持文本和文件传输",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "ws": "^8.18.3",
+    "multer": "^1.4.5-lts.1"
+  },
+  "vercel": {
+    "description": "Vercel部署说明: 由于Vercel Serverless Functions不支持WebSocket持久连接，此应用的实时通信功能在Vercel上会受限。建议使用第三方WebSocket服务如Pusher或Socket.io替代。"
+  }
+}
