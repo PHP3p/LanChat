@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(test:*)",
+      "Bash(node server.js:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
