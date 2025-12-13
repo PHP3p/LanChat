@@ -98,7 +98,10 @@
 
 <script>
     // 判断是否为本地环境
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const isLocal = window.location.hostname === 'localhost' || 
+                   window.location.hostname === '127.0.0.1' || 
+                   window.location.hostname.startsWith('192.') || 
+                   window.location.hostname.startsWith('172.');
 
     if (!isLocal) {
         // 非本地环境，动态加载 index.ably.html 的内容
@@ -430,9 +433,6 @@
     };
 
     sendBtn.onclick = send;
-    connectBtn.onclick = () => {
-        if (!connected) connect(); else ws?.close();
-    };
 
     copyBtn.onclick = async () => {
         let selected = window.getSelection()?.toString();
@@ -477,6 +477,7 @@
 
     // 首次自动尝试连接
     connect();
+    }
 </script>
 </body>
 </html>
