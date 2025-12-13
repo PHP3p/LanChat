@@ -120,24 +120,29 @@ app.post('/upload', uploadMiddleware, (req, res) => {
     }
 });
 
-// 文件访问接口 - 仅在本地环境启用
-app.get('/uploads/:filename', (req, res, next) => {
+app.get('/uploads', (req, res) => {
     if (isLocalEnvironment(req)) {
-        // 本地环境提供文件访问
-        const filename = req.params.filename;
-        const filePath = path.join(UPLOAD_DIR, filename);
-        
-        // 检查文件是否存在
-        if (fs.existsSync(filePath)) {
-            res.sendFile(filePath);
-        } else {
-            res.status(404).json({ error: '文件不存在' });
+        try {
+            const files = fs.readdirSync(UPLOAD_DIR)
+                .map(file => {
+                    const filePath = path.join(UPLOAD_DIR, file);
+                    const stat = fs.statSync(filePath);
+                    return {
+                        name: file,
+                        url: `/uploads/${file}`,
+                        modified: stat.mtimeMs
+                    };
+                })
+                .sort((a, b) => b.modified - a.modified);
+            res.json(files);
+        } catch (error) {
+            console.error('加载文件列表错误:', error);
+            res.status(500).json({ error: '加载文件列表失败' });
         }
     } else {
-        // 线上环境不提供文件访问
         res.status(403).json({ 
-            error: '文件访问功能仅在本地环境可用',
-            message: '线上环境不支持文件访问，请在本地网络中使用此功能' 
+            error: '文件列表功能仅在本地环境可用',
+            message: '线上环境不支持文件列表功能，请在本地网络中使用此功能' 
         });
     }
 });

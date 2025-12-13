@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件上传与管理</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .upload-form {
+            margin-bottom: 20px;
+        }
+        .file-list {
+            margin-top: 20px;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            background: #fff;
+        }
+        .file-item a {
+            text-decoration: none;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>文件上传与管理</h1>
+        <button id="fileBtn" class="primary">上传文件</button>
+        <input type="file" id="fileInput" style="display: none;" />
+        <div class="file-list" id="fileList">
+            <h2>已上传文件:</h2>
+            <!-- 文件列表将通过 JavaScript 动态加载 -->
+        </div>
+    </div>
+
+    <script>
+        const fileBtn = document.getElementById("fileBtn");
+        const fileInput = document.getElementById("fileInput");
+
+        fileBtn.addEventListener("click", () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener("change", async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomId = urlParams.get("room") || "1";
+            formData.append("roomId", roomId);
+
+            try {
+                const response = await fetch("/upload", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    alert("文件上传成功！");
+                    loadFiles();
+                } else {
+                    const error = await response.json();
+                    alert(`文件上传失败: ${error.message || "未知错误"}`);
+                }
+            } catch (error) {
+                console.error("上传错误:", error);
+                alert("上传过程中发生错误！");
+            }
+        });
+
+        async function loadFiles() {
+            try {
+                const response = await fetch('/uploads');
+                const files = await response.json();
+
+                fileList.innerHTML = '<h2>已上传文件:</h2>';
+                files.forEach(file => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
+                        <span>${file.name}</span>
+                        <a href="${file.url}" download>下载</a>
+                    `;
+                    fileList.appendChild(fileItem);
+                });
+            } catch (error) {
+                console.error('加载文件列表错误:', error);
+                fileList.innerHTML = '<p>加载文件列表失败!</p>';
+            }
+        }
+
+        // 页面加载时自动加载文件列表
+        loadFiles();
+    </script>
+</body>
+</html>

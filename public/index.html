@@ -246,9 +246,9 @@
     // 重连定时器
     let reconnectTimeout;
     // 心跳间隔（毫秒）
-    const HEARTBEAT_INTERVAL = 30000; // 30秒
+    const HEARTBEAT_INTERVAL = 300000; // 5分钟
     // 重连延迟（毫秒）
-    const RECONNECT_DELAY = 3000; // 3秒
+    const RECONNECT_DELAY = 120000; // 2分钟
 
     function connect() {
         if (connected) {
@@ -366,7 +366,8 @@
         if (!file) return;
         
         if (!connected || !ws || ws.readyState !== WebSocket.OPEN) {
-            addMsg({ kind: "system", text: "未连接，无法发送文件。" });
+            addMsg({ kind: "system", text: "未连接，正在尝试重新连接..." });
+            connect();
             return;
         }
         
